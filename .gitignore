@@ -1,0 +1,13 @@
+# Large model weights — kept out of git to keep the clone small.
+# Place them manually; see Aaaaagh/Resources/Models/EuroLLM-1.7B-Instruct-4bit/README.md
+*.safetensors
+*.safetensors.*
+
+# Build / Xcode artifacts
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/xcuserdata/
+xcuserdata/
+.DS_Store
+.build-xcode-debug.yaml
