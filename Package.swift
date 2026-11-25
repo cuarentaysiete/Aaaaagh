@@ -34,6 +34,10 @@ let package = Package(
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
                 .product(name: "HuggingFace", package: "swift-huggingface"),
+                // AutoTokenizer / Tokenizers — required by MLXLMCommon.Container
+                // (which exposes the loaded model's tokenizer). Separate product
+                // of the swift-huggingface package.
+                .product(name: "Tokenizers", package: "swift-huggingface"),
             ],
             path: "Aaaaagh",
             resources: [
