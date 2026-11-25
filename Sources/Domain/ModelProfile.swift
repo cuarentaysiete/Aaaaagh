@@ -5,19 +5,26 @@
 
 import Foundation
 
-/// The prompt-building strategy used by a profile. Keeping it a domain enum means
-/// the UI never sees prompt text, and swapping models only means swapping profiles.
-public enum PromptStyle: String, Codable, CaseIterable, Sendable {
-    /// Terse, deterministic, non-conversational translation prompts (the correct
-    /// choice for `Instruct` models used strictly as a translation engine).
-    case terseEngine
-    /// A looser, more conversational chat-style prompt (reserved for future models).
-    case conversational
-}
-
 /// A fully self-describing local model. The engine loads `localDirectoryURL`
 /// lazily and applies sampling limits / prompt style from here.
 public struct ModelProfile: Identifiable, Equatable, Codable, Sendable {
+
+    // MARK: - PromptStyle (nested)
+
+    /// The prompt-building strategy used by a profile. Nesting it inside
+    /// `ModelProfile` keeps it a domain concept; a top-level `PromptStyle`
+    /// typealias below lets both `PromptStyle` and `ModelProfile.PromptStyle`
+    /// work interchangeably.
+    public enum PromptStyle: String, Codable, CaseIterable, Sendable {
+        /// Terse, deterministic, non-conversational translation prompts (the correct
+        /// choice for `Instruct` models used strictly as a translation engine).
+        case terseEngine
+        /// A looser, more conversational chat-style prompt (reserved for future models).
+        case conversational
+    }
+
+    // MARK: - Stored properties
+
     /// Stable identifier, e.g. `"eurolm-1.7b-instruct-4bit"`.
     public var id: String
     public var displayName: String
@@ -66,6 +73,11 @@ public struct ModelProfile: Identifiable, Equatable, Codable, Sendable {
         self.idleUnloadSeconds = idleUnloadSeconds
     }
 }
+
+// MARK: - Convenience typealias
+
+/// Top-level alias so both `PromptStyle` and `ModelProfile.PromptStyle` resolve.
+public typealias PromptStyle = ModelProfile.PromptStyle
 
 extension ModelProfile {
     /// The default profile for the bundled EuroLLM 1.7B Instruct (4-bit) model.
