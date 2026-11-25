@@ -15,7 +15,10 @@ let package = Package(
         // High-level LLM loading + ChatSession (MLXLLM, MLXLMCommon, MLXHuggingFace).
         .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", from: "3.33.0"),
         // HuggingFace Hub client (HubClient) used by the #hubDownloader macro.
-        .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.9.0")
+        .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.9.0"),
+        // Tokenizers (AutoTokenizer) — required by the #huggingFaceTokenizerLoader
+        // macro and by MLXLMCommon.Container. Separate package from swift-huggingface.
+        .package(url: "https://github.com/huggingface/swift-transformers.git", from: "1.3.0")
     ],
     targets: [
         // Pure domain layer: NO SwiftUI, NO MLX imports.
@@ -35,9 +38,9 @@ let package = Package(
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
                 .product(name: "HuggingFace", package: "swift-huggingface"),
                 // AutoTokenizer / Tokenizers — required by MLXLMCommon.Container
-                // (which exposes the loaded model's tokenizer). Separate product
-                // of the swift-huggingface package.
-                .product(name: "Tokenizers", package: "swift-huggingface"),
+                // and the #huggingFaceTokenizerLoader macro. Lives in
+                // swift-transformers (NOT swift-huggingface).
+                .product(name: "Tokenizers", package: "swift-transformers"),
             ],
             path: "Aaaaagh",
             resources: [
