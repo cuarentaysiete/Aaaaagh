@@ -1,12 +1,13 @@
 // ModelProfile.swift
 // Domain: a configurable description of a local MLX model.
 // Nothing here hardcodes paths or prompt strings inside the UI layer.
+// All members are `public` so the `Aaaaagh` target can use them.
 
 import Foundation
 
 /// The prompt-building strategy used by a profile. Keeping it a domain enum means
 /// the UI never sees prompt text, and swapping models only means swapping profiles.
-enum PromptStyle: String, Codable, CaseIterable, Sendable {
+public enum PromptStyle: String, Codable, CaseIterable, Sendable {
     /// Terse, deterministic, non-conversational translation prompts (the correct
     /// choice for `Instruct` models used strictly as a translation engine).
     case terseEngine
@@ -16,30 +17,30 @@ enum PromptStyle: String, Codable, CaseIterable, Sendable {
 
 /// A fully self-describing local model. The engine loads `localDirectoryURL`
 /// lazily and applies sampling limits / prompt style from here.
-struct ModelProfile: Identifiable, Equatable, Codable, Sendable {
+public struct ModelProfile: Identifiable, Equatable, Codable, Sendable {
     /// Stable identifier, e.g. `"eurolm-1.7b-instruct-4bit"`.
-    var id: String
-    var displayName: String
+    public var id: String
+    public var displayName: String
     /// Absolute or app-relative URL to the folder containing config.json,
     /// tokenizer files and .safetensors weights.
-    var localDirectoryURL: URL
-    var promptStyle: PromptStyle
+    public var localDirectoryURL: URL
+    public var promptStyle: PromptStyle
     /// Max tokens of context the model supports (from config.json max_position_embeddings).
-    var contextWindow: Int
+    public var contextWindow: Int
     /// Practical character budget for user input, derived from `contextWindow`.
-    var maxInputCharacters: Int
+    public var maxInputCharacters: Int
     /// Hard cap on generated tokens per translation (safety, on top of EOS).
-    var maxOutputTokens: Int
+    public var maxOutputTokens: Int
     /// Sampling temperature (low for deterministic translation).
-    var samplingTemperature: Double
+    public var samplingTemperature: Double
     /// Nucleus sampling threshold.
-    var topP: Double
+    public var topP: Double
     /// Extra stop-token IDs (in addition to the model's built-in EOS).
-    var stopTokenIDs: Set<Int>
+    public var stopTokenIDs: Set<Int>
     /// Seconds of inactivity after which the engine should release the model.
-    var idleUnloadSeconds: Int
+    public var idleUnloadSeconds: Int
 
-    init(
+    public init(
         id: String,
         displayName: String,
         localDirectoryURL: URL,
@@ -73,7 +74,7 @@ extension ModelProfile {
     /// = 3000 (safe budget with headroom for prompt + output, CJK-safe). EOS for
     /// this model is token id 4 (`</s>`), which MLX also honors from the model's
     /// own generation config; listed here as a belt-and-braces stop set.
-    static func defaultEuroLLM(bundledModelsRoot: URL) -> ModelProfile {
+    public static func defaultEuroLLM(bundledModelsRoot: URL) -> ModelProfile {
         let dir = bundledModelsRoot
             .appendingPathComponent("EuroLLM-1.7B-Instruct-4bit", isDirectory: true)
         return ModelProfile(
@@ -92,7 +93,7 @@ extension ModelProfile {
     }
 
     /// Compute a safe input-character budget from a token context window.
-    static func practicalCharacterBudget(
+    public static func practicalCharacterBudget(
         maxContextTokens: Int,
         reservedPromptTokens: Int = 512,
         outputShare: Double = 0.4,

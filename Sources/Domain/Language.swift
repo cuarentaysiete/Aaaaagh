@@ -1,5 +1,7 @@
 // Language.swift
 // Domain: language model. Pure value types, no SwiftUI/MLX dependencies.
+// All members are `public` so the `Aaaaagh` target can use them across the
+// module boundary.
 
 import Foundation
 
@@ -7,38 +9,44 @@ import Foundation
 ///
 /// The `code` is the ISO-639-1 (or script-tagged for CJK) identifier we feed to
 /// the model and compare against `NaturalLanguage` detection results.
-struct Language: Hashable, Identifiable, Codable, Sendable {
+public struct Language: Hashable, Identifiable, Codable, Sendable {
     /// Stable machine code, e.g. `"es"`, `"en"`, `"ja"`, `"zh-Hans"`.
-    let code: String
+    public let code: String
     /// Native display name, e.g. `"Español"`.
-    let nativeName: String
+    public let nativeName: String
     /// English display name, e.g. `"Spanish"`.
-    let englishName: String
+    public let englishName: String
 
-    var id: String { code }
+    public var id: String { code }
 
     /// Label shown in dropdowns: "Español (ES)".
-    var displayLabel: String {
+    public var displayLabel: String {
         let tag = code.uppercased().split(separator: "-").first.map(String.init) ?? code.uppercased()
         return "\(nativeName) (\(tag))"
     }
 
     /// Short name used in inline labels (no tag): "Español".
-    var displayName: String { nativeName }
+    public var displayName: String { nativeName }
 
     /// Localized description used in status / detection messages.
-    var localizedDescription: String { "\(englishName) (\(code))" }
+    public var localizedDescription: String { "\(englishName) (\(code))" }
+
+    public init(code: String, nativeName: String, englishName: String) {
+        self.code = code
+        self.nativeName = nativeName
+        self.englishName = englishName
+    }
 }
 
 extension Language {
     /// The European core subset, shown first / grouped in pickers.
-    static let europeanLanguages: [Language] = all.filter { l in
+    public static let europeanLanguages: [Language] = all.filter { l in
         !Set(["zh-Hans", "zh-Hant", "ja", "ko"]).contains(l.code)
     }
 
     /// The set of languages offered in the UI. European languages are the core
     /// strength; CJK (Chinese, Japanese, Korean) is cleanly supported as well.
-    static let all: [Language] = [
+    public static let all: [Language] = [
         // European (core)
         Language(code: "en", nativeName: "English", englishName: "English"),
         Language(code: "es", nativeName: "Español", englishName: "Spanish"),
@@ -75,15 +83,15 @@ extension Language {
     ]
 
     /// Sensible default target when nothing better is known.
-    static let defaultLanguage = Language(code: "en", nativeName: "English", englishName: "English")
+    public static let defaultLanguage = Language(code: "en", nativeName: "English", englishName: "English")
 
-    static func language(withCode code: String) -> Language? {
+    public static func language(withCode code: String) -> Language? {
         all.first { $0.code.caseInsensitiveCompare(code) == .orderedSame }
     }
 
     /// Best-effort mapping from an Apple `NLLanguage`-style raw code to our `Language`.
     /// Tolerates scripts (e.g. "zh-Hans", "sr-Latn") by matching on the base code.
-    static func language(fromDetectionCode code: String) -> Language? {
+    public static func language(fromDetectionCode code: String) -> Language? {
         if let exact = language(withCode: code) { return exact }
         // Fall back to the base language code (strip script/region).
         let base = code.split(separator: "-").first.map(String.init) ?? code
