@@ -8,9 +8,9 @@ let package = Package(
         .macOS(.v14)
     ],
     dependencies: [
-        // Core MLX (MLX, MLXNN, MLXFast, MLXRandom). Pinned to the same minor the
-        // official mlx-swift-examples use, for a known-good matrix.
-        .package(url: "https://github.com/ml-explore/mlx-swift.git", .upToNextMinor(from: "0.31.4")),
+        // Core MLX (MLX, MLXNN, MLXFast, MLXRandom). Pinned to 0.33.x to match what
+        // mlx-swift-lm 3.33.0 requires (mlx-swift 0.33.0..<0.34.0).
+        .package(url: "https://github.com/ml-explore/mlx-swift.git", "0.33.0"..<"0.34.0"),
         // High-level LLM loading + ChatSession (MLXLLM, MLXLMCommon, MLXHuggingFace).
         .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", from: "3.33.0"),
         // HuggingFace Hub client (HubClient) used by the #hubDownloader macro.
