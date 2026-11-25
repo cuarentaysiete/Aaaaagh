@@ -60,8 +60,8 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
         }
 
         let task = Task { [self] in
-            set isLoading(true)
-            defer { set isLoading(false) }
+            set(true)
+            defer { set(false) }
 
             // ModelConfiguration pointing at the local directory (offline; no network).
             let configuration = ModelConfiguration(
