@@ -42,9 +42,10 @@ final class LanguageDetectionService {
 
         // Get the language tag for the first paragraph.
         let result = tagger.tag(at: trimmed.startIndex, unit: .paragraph, scheme: .language)
-        guard let tag = result.0, let languageCode = tag.rawValue else {
+        guard let tag = result.0 else {
             return DetectionResult(language: nil, confidence: 0, isUncertain: true)
         }
+        let languageCode = tag.rawValue
 
         // Map the ISO 639-1 code to a Domain.Language.
         guard let language = Language.language(withCode: languageCode) else {
