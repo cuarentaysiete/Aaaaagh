@@ -97,7 +97,9 @@ struct MainTranslationView: View {
                 title: "To",
                 selectedLanguage: Binding(
                     get: { viewModel.targetLanguage },
-                    set: { viewModel.targetLanguage = $0 }
+                    set: { lang in
+                        if let lang { viewModel.targetLanguage = lang }
+                    }
                 ),
                 isAuto: .constant(false),
                 allowsAutoDetect: false,
