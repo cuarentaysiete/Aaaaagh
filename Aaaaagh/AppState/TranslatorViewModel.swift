@@ -24,7 +24,10 @@ final class TranslatorViewModel: ObservableObject {
             if inputText.count > maxInputCharacters {
                 inputText = String(inputText.prefix(maxInputCharacters))
             }
+            guard inputText != oldValue else { return }
             scheduleRedetect(); invalidateIdleTimer()
+            // Real-time translation: debounce 500ms after the user stops typing.
+            scheduleAutoTranslate()
         }
     }
     @Published var outputText: String = "" {
@@ -58,6 +61,7 @@ final class TranslatorViewModel: ObservableObject {
     // Cancellation handles.
     private var translationTask: Task<Void, Never>?
     private var alternativesTask: Task<Void, Never>?
+    private var autoTranslateTask: Task<Void, Never>?
 
     // Idle unload.
     private var idleWorkItem: DispatchWorkItem?
@@ -126,6 +130,25 @@ final class TranslatorViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Real-time translation (debounced)
+
+    /// Debounce: 500ms after the user stops typing, trigger a translation.
+    private func scheduleAutoTranslate() {
+        autoTranslateTask?.cancel()
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            // If the input is empty, clear the output.
+            outputText = ""
+            statusMessage = "Ready"
+            return
+        }
+        autoTranslateTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            guard !Task.isCancelled else { return }
+            translate()
+        }
+    }
+
     // MARK: - Translation (streaming, incremental chunks)
 
     func translate() {
@@ -188,6 +211,8 @@ final class TranslatorViewModel: ObservableObject {
     }
 
     func cancelTranslation() {
+        autoTranslateTask?.cancel()
+        autoTranslateTask = nil
         translationTask?.cancel()
         translationTask = nil
         isTranslating = false
