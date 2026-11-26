@@ -83,10 +83,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let autosaveName = "AaaaaghMainWindow"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Activate the app so its window becomes key and receives keyboard input.
+        NSApp.activate(ignoringOtherApps: true)
+
         // Give SwiftUI a moment to create the main window, then apply the
-        // autosave name so AppKit restores the last saved frame.
+        // autosave name so AppKit restores the last saved frame, and make it key.
         DispatchQueue.main.async {
-            NSApp.mainWindow?.setFrameAutosaveName(self.autosaveName)
+            if let window = NSApp.mainWindow {
+                window.setFrameAutosaveName(self.autosaveName)
+                window.makeKeyAndOrderFront(nil)
+            }
         }
     }
 }

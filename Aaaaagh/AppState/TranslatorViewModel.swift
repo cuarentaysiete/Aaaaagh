@@ -19,7 +19,13 @@ final class TranslatorViewModel: ObservableObject {
     // MARK: - Published state
 
     @Published var inputText: String = "" {
-        didSet { scheduleRedetect(); invalidateIdleTimer() }
+        didSet {
+            // Enforce the max input length (hard limit): trim if over.
+            if inputText.count > maxInputCharacters {
+                inputText = String(inputText.prefix(maxInputCharacters))
+            }
+            scheduleRedetect(); invalidateIdleTimer()
+        }
     }
     @Published var outputText: String = "" {
         didSet { outputCopied = false }
