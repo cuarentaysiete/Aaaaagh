@@ -14,6 +14,9 @@ struct MainTranslationView: View {
     // Tracking which output word is selected for the alternatives popover.
     @State private var showAlternatives = false
 
+    // Focus management: the input text editor should have focus on launch.
+    @FocusState private var inputHasFocus: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -118,13 +121,16 @@ struct MainTranslationView: View {
 
     private var panes: some View {
         HStack(spacing: 0) {
+            // The input pane is ALWAYS editable (the user can type/paste text
+            // regardless of whether a model is loaded). Only the output pane and
+            // the Translate button are gated on model availability.
             inputPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             Divider()
             outputPane
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .disabled(viewModel.panesDisabled)
         }
-        .disabled(viewModel.panesDisabled)
         .overlay {
             if viewModel.panesDisabled {
                 missingModelOverlay
@@ -139,6 +145,12 @@ struct MainTranslationView: View {
                 .scrollContentBackground(.hidden)
                 .padding(6)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
+                .focused($inputHasFocus)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        inputHasFocus = true
+                    }
+                }
 
             HStack {
                 // Live character counter.

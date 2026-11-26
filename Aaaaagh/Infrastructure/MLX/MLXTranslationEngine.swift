@@ -53,11 +53,17 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
     // MARK: - Loading
 
     func load() async throws {
+        // Fast path: already loaded.
         if isLoaded { return }
-        if let loadingTask {
-            try await loadingTask.value
+
+        // If a load is already in flight, await it (don't start a second one).
+        stateLock.lock()
+        if let existing = loadingTask {
+            stateLock.unlock()
+            try await existing.value
             return
         }
+        stateLock.unlock()
 
         let task = Task { [self] in
             set(true)
@@ -69,23 +75,34 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
                 eosTokenIds: Set(profile.stopTokenIDs)
             )
 
-            // Load the model + tokenizer from the local directory. The `#hubDownloader`
-            // macro isn't needed because the configuration is a local directory; the
-            // tokenizer loader reads tokenizer files from the same directory.
-            let container = try await LLMModelFactory.shared.loadContainer(
-                from: #hubDownloader(HubClient()),
-                using: #huggingFaceTokenizerLoader(),
-                configuration: configuration
-            )
-
-            self.modelContainer = container
+            // Load the model + tokenizer from the local directory.
+            // `#hubDownloader()` (no HubClient) loads from the local directory
+            // specified in the configuration; no network is used.
+            do {
+                let container = try await LLMModelFactory.shared.loadContainer(
+                    from: #hubDownloader(),
+                    using: #huggingFaceTokenizerLoader(),
+                    configuration: configuration
+                )
+                self.modelContainer = container
+            } catch {
+                // Log the error so the user can see why the model failed to load.
+                NSLog("[MLXTranslationEngine] load() failed: \(error)")
+                throw error
+            }
         }
 
         stateLock.lock()
-        if loadingTask == nil { loadingTask = task }
+        loadingTask = task
         stateLock.unlock()
 
-        defer { stateLock.lock(); loadingTask = nil; stateLock.unlock() }
+        // Clear the loading task handle when the task completes.
+        defer {
+            stateLock.lock()
+            loadingTask = nil
+            stateLock.unlock()
+        }
+
         try await task.value
     }
 
