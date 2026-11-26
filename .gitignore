@@ -11,3 +11,4 @@ DerivedData/
 xcuserdata/
 .DS_Store
 .build-xcode-debug.yaml
+build/
