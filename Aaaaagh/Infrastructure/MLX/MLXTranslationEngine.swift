@@ -53,6 +53,7 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
     // MARK: - Loading
 
     func load() async throws {
+        NSLog("[MLX] load() called, isLoaded: \(isLoaded), modelDir: \(modelDirectory.path)")
         // Fast path: already loaded.
         if isLoaded { return }
 
@@ -67,6 +68,7 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
 
         let task = Task { [self] in
             set(true)
+            NSLog("[MLX] load task started")
             defer { set(false) }
 
             // ModelConfiguration pointing at the local directory (offline; no network).
@@ -74,20 +76,20 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
                 directory: modelDirectory,
                 eosTokenIds: Set(profile.stopTokenIDs)
             )
+            NSLog("[MLX] configuration: directory=\(modelDirectory.path)")
 
             // Load the model + tokenizer from the local directory.
-            // `#hubDownloader()` (no HubClient) loads from the local directory
-            // specified in the configuration; no network is used.
             do {
+                NSLog("[MLX] calling LLMModelFactory.loadContainer...")
                 let container = try await LLMModelFactory.shared.loadContainer(
                     from: #hubDownloader(),
                     using: #huggingFaceTokenizerLoader(),
                     configuration: configuration
                 )
+                NSLog("[MLX] model loaded successfully")
                 self.modelContainer = container
             } catch {
-                // Log the error so the user can see why the model failed to load.
-                NSLog("[MLXTranslationEngine] load() failed: \(error)")
+                NSLog("[MLX] load() FAILED: \(error)")
                 throw error
             }
         }
@@ -104,6 +106,7 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
         }
 
         try await task.value
+        NSLog("[MLX] load() completed")
     }
 
     func unload() {
