@@ -149,15 +149,18 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
         let profile = self.profile
         NSLog("[MLXTranslationEngine] translate(): model loaded, building prompts")
 
+        // Always pass the resolved source language (even if it was auto-detected).
+        // This makes the prompt more deterministic: "Translate from X into Y" instead of
+        // "Detect the source language automatically".
         let system = PromptBuilder.systemPrompt(
-            from: request.sourceLanguage == .auto ? nil : sourceLanguage,
+            from: sourceLanguage,
             to: request.targetLanguage,
             modelStyle: profile.promptStyle
         )
         let userPrompt = PromptBuilder.translationPrompt(
             text: request.text,
             target: request.targetLanguage,
-            source: request.sourceLanguage == .auto ? nil : sourceLanguage,
+            source: sourceLanguage,
             modelStyle: profile.promptStyle
         )
         let params = self.generateParameters(maxTokens: profile.maxOutputTokens)

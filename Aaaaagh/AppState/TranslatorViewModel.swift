@@ -102,6 +102,7 @@ final class TranslatorViewModel: ObservableObject {
 
     var maxInputCharacters: Int { modelStore.profile.maxInputCharacters }
     var isModelValid: Bool { modelStore.isActiveModelValid }
+    var isModelLoaded: Bool { engine.isLoaded }
     var panesDisabled: Bool { !isModelValid }
 
     /// The effective source language (resolving `.auto` with detection).
@@ -251,36 +252,36 @@ final class TranslatorViewModel: ObservableObject {
     func swap() {
         cancelTranslation()
         cancelAlternatives()
-
-        let resolvedSource: Language
-        switch sourceLanguageOption {
-        case .language(let l):
-            resolvedSource = l
-        case .auto:
-            if let d = detectedLanguage, !detectionIsUncertain {
-                resolvedSource = d
-            } else {
-                resolvedSource = targetLanguage
-            }
-        }
-
-        let previousTarget = targetLanguage
+        
+        // Swap the text.
         let newInput = outputText
         outputText = ""
-
-        sourceLanguageOption = .language(resolvedSource)
-        if previousTarget.code == resolvedSource.code {
-            targetLanguage = (Language.defaultLanguage.code == resolvedSource.code)
-                ? Language.all[1]
-                : Language.defaultLanguage
-        } else {
-            targetLanguage = previousTarget
-        }
-
         inputText = newInput
+        
+        // Swap the languages.
+        let previousSource = sourceLanguageOption
+        let previousTarget = targetLanguage
+        
+        // The new source is the old target (always a concrete language).
+        sourceLanguageOption = .language(previousTarget)
+        
+        // The new target is the old source (if it was a concrete language, use it;
+        // if it was auto, use the detected language or fall back to default).
+        switch previousSource {
+        case .language(let l):
+            targetLanguage = l
+        case .auto:
+            if let d = detectedLanguage, !detectionIsUncertain {
+                targetLanguage = d
+            } else {
+                targetLanguage = Language.defaultLanguage
+            }
+        }
+        
         statusMessage = "Swapped"
         invalidateIdleTimer()
         scheduleRedetect()
+        scheduleAutoTranslate()
     }
 
     func clearInput() {

@@ -1,16 +1,5 @@
 // MainTranslationView.swift
 // Presentation: minimalist dual-pane translator.
-//
-// Layout:
-//   ┌─────────────────────────────────────────────────────────────┐
-//   │  [Auto ▾]            ⇄            [Español ▾]              │  ← language row
-//   ├──────────────────────┬──────────────────────────────────────┤
-//   │                      │                                      │
-//   │   Input text         │   Output text                        │  ← panes
-//   │                      │                                      │
-//   ├──────────────────────┴──────────────────────────────────────┤
-//   │  ● Ready · Offline · EuroLLM 1.7B                           │  ← status bar
-//   └─────────────────────────────────────────────────────────────┘
 
 import SwiftUI
 import AppKit
@@ -24,19 +13,12 @@ struct MainTranslationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top: model badge + settings gear (minimal header).
             topBar
             Divider()
-
-            // Language row: [source picker]  [swap]  [target picker]
             languageRow
             Divider()
-
-            // Panes: input (left) | output (right)
             panes
             Divider()
-
-            // Status bar.
             statusBar
         }
         .sheet(isPresented: $showModelSettings) {
@@ -44,11 +26,10 @@ struct MainTranslationView: View {
         }
     }
 
-    // MARK: - Top bar (minimal)
+    // MARK: - Top bar
 
     private var topBar: some View {
         HStack {
-            // Model badge (clickable to open settings).
             Button {
                 showModelSettings = true
             } label: {
@@ -60,7 +41,6 @@ struct MainTranslationView: View {
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("Model Settings")
 
             Spacer()
 
@@ -87,7 +67,6 @@ struct MainTranslationView: View {
                     get: { if case .language(let l) = viewModel.sourceLanguageOption { return l }; return nil },
                     set: { lang in
                         viewModel.sourceLanguageOption = lang == nil ? .auto : .language(lang!)
-                        // Auto-retranslate if there's input.
                         viewModel.sourceLanguageChanged()
                     }
                 ),
@@ -123,7 +102,6 @@ struct MainTranslationView: View {
                     set: { lang in
                         if let lang {
                             viewModel.targetLanguage = lang
-                            // Auto-retranslate if there's input.
                             viewModel.targetLanguageChanged()
                         }
                     }
@@ -158,38 +136,56 @@ struct MainTranslationView: View {
     }
 
     private var inputPane: some View {
-        TextEditor(text: $viewModel.inputText)
-            .font(.body)
-            .scrollContentBackground(.hidden)
-            .padding(8)
-            .focused($inputHasFocus)
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    inputHasFocus = true
+        VStack(spacing: 0) {
+            TextEditor(text: $viewModel.inputText)
+                .font(.body)
+                .scrollContentBackground(.hidden)
+                .padding(8)
+                .focused($inputHasFocus)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        inputHasFocus = true
+                    }
                 }
-            }
+            // Character count (bottom of input pane).
+            Text("\(viewModel.inputText.count)/\(viewModel.maxInputCharacters)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 4)
+        }
     }
 
     private var outputPane: some View {
-        OutputTextView(
-            text: viewModel.outputText,
-            onWordSelect: { word, sentence in
-                viewModel.requestAlternativesForWord(word, contextSentence: sentence)
-                showAlternatives = true
+        VStack(spacing: 0) {
+            OutputTextView(
+                text: viewModel.outputText,
+                onWordSelect: { word, sentence in
+                    viewModel.requestAlternativesForWord(word, contextSentence: sentence)
+                    showAlternatives = true
+                }
+            )
+            .font(.body)
+            .scrollContentBackground(.hidden)
+            .padding(8)
+            .popover(isPresented: $showAlternatives, arrowEdge: .top) {
+                WordAlternativesPopover(
+                    selectedWord: viewModel.selectedOutputWord ?? "",
+                    alternatives: viewModel.wordAlternatives,
+                    isLoading: viewModel.isLoadingAlternatives
+                ) { alternative in
+                    viewModel.replaceSelectedWord(with: alternative)
+                    showAlternatives = false
+                }
             }
-        )
-        .font(.body)
-        .scrollContentBackground(.hidden)
-        .padding(8)
-        .popover(isPresented: $showAlternatives, arrowEdge: .top) {
-            WordAlternativesPopover(
-                selectedWord: viewModel.selectedOutputWord ?? "",
-                alternatives: viewModel.wordAlternatives,
-                isLoading: viewModel.isLoadingAlternatives
-            ) { alternative in
-                viewModel.replaceSelectedWord(with: alternative)
-                showAlternatives = false
-            }
+            // Character count (bottom of output pane).
+            Text("\(viewModel.outputText.count)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 4)
         }
     }
 
@@ -210,17 +206,27 @@ struct MainTranslationView: View {
     // MARK: - Status bar
 
     private var statusBar: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(viewModel.isModelValid ? .green : .orange)
-                .frame(width: 7, height: 7)
+        HStack(spacing: 8) {
+            // Model status (left).
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(viewModel.isModelLoaded ? .green : .orange)
+                    .frame(width: 7, height: 7)
+                Text(viewModel.modelStore.activeModel?.displayName ?? "No model")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if viewModel.isModelLoaded {
+                    Text("· Loaded")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            // Translation status (right).
             Text(statusText)
                 .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            // Character counter (right-aligned).
-            Text("\(viewModel.inputText.count)/\(viewModel.maxInputCharacters)")
-                .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
@@ -230,6 +236,6 @@ struct MainTranslationView: View {
     private var statusText: String {
         if viewModel.isTranslating { return "Translating…" }
         if !viewModel.statusMessage.isEmpty { return viewModel.statusMessage }
-        return viewModel.isModelValid ? "Ready · Offline" : "No model"
+        return "Ready"
     }
 }

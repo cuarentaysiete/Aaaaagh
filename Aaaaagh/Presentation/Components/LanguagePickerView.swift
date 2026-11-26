@@ -50,8 +50,11 @@ struct LanguagePickerView: View {
                 }
             }
             .labelsHidden()
-
-            // Auto-detect badge (inline, compact).
+            // Fixed height for the picker (so the badge doesn't push it).
+            .frame(height: 28)
+        }
+        .overlay(alignment: .bottomLeading) {
+            // Auto-detect badge (overlay, doesn't affect layout).
             if allowsAutoDetect && isAuto {
                 if let detected = detectedLanguage {
                     Text(isDetectionUncertain
@@ -59,10 +62,12 @@ struct LanguagePickerView: View {
                          : "(\(detected.englishName))")
                         .font(.caption2)
                         .foregroundStyle(isDetectionUncertain ? .orange : .secondary)
+                        .padding(.top, 2)
                 } else {
                     Text("(no detection)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .padding(.top, 2)
                 }
             }
         }
