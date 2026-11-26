@@ -56,7 +56,7 @@ struct AaaaaghApp: App {
                 Button("Swap Languages") {
                     viewModel.swap()
                 }
-                .keyboardShortcut(.s, modifiers: .command)
+                .keyboardShortcut("s", modifiers: .command)
 
                 Button("Clear") {
                     viewModel.clearInput()
@@ -75,33 +75,18 @@ struct AaaaaghApp: App {
     }
 }
 
-/// Handles window-frame persistence (saves the last frame on close, restores on launch).
+/// Handles window-frame persistence via `NSWindow.setFrameAutosaveName(_:)`,
+/// which lets AppKit save and restore the window frame automatically.
+/// No manual `NSKeyedArchiver`/`NSKeyedUnarchiver` needed (and `NSRect`/`CGRect`
+/// is a C struct that can't be archived with `NSKeyedArchiver` anyway).
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let frameKey = "AaaaaghMainWindowFrame"
+    private let autosaveName = "AaaaaghMainWindow"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        restoreMainWindowFrame()
-    }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        saveMainWindowFrame()
-    }
-
-    private func restoreMainWindowFrame() {
-        guard
-            let data = UserDefaults.standard.data(forKey: frameKey),
-            let frame = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSRect.self, from: data)
-        else { return }
+        // Give SwiftUI a moment to create the main window, then apply the
+        // autosave name so AppKit restores the last saved frame.
         DispatchQueue.main.async {
-            NSApp.mainWindow?.setFrame(frame, display: true)
-        }
-    }
-
-    private func saveMainWindowFrame() {
-        guard let window = NSApp.mainWindow else { return }
-        let frame = window.frame
-        if let data = try? NSKeyedArchiver.archivedData(withRootObject: frame, requiringSecureCoding: true) {
-            UserDefaults.standard.set(data, forKey: frameKey)
+            NSApp.mainWindow?.setFrameAutosaveName(self.autosaveName)
         }
     }
 }
