@@ -66,7 +66,7 @@ final class ModelRegistryStore: ObservableObject {
         p.topP = defaults.object(forKey: Keys.topP) as? Double ?? 0.9
         p.maxOutputTokens = defaults.object(forKey: Keys.maxOutputTokens) as? Int ?? 512
         p.idleUnloadSeconds = defaults.object(forKey: Keys.idleUnloadSeconds) as? Int ?? 120
-        p.stopTokenIDs = Set(defaults.array(forKey: Keys.stopTokenIDs).compactMap { $0 as? Int })
+        p.stopTokenIDs = Set((defaults.array(forKey: Keys.stopTokenIDs) ?? []).compactMap { $0 as? Int })
 
         profile = p
         revalidate()
