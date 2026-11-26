@@ -130,6 +130,20 @@ final class TranslatorViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Language change handlers (auto-retranslate)
+
+    /// Called when the source language changes. Retrigger auto-detection and
+    /// retranslate if there's input.
+    func sourceLanguageChanged() {
+        scheduleRedetect()
+        scheduleAutoTranslate()
+    }
+
+    /// Called when the target language changes. Retranslate if there's input.
+    func targetLanguageChanged() {
+        scheduleAutoTranslate()
+    }
+
     // MARK: - Real-time translation (debounced)
 
     /// Debounce: 500ms after the user stops typing, trigger a translation.
@@ -159,6 +173,20 @@ final class TranslatorViewModel: ObservableObject {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
             statusMessage = "Nothing to translate."
+            return
+        }
+
+        // If source and target are the same, don't translate (no sense).
+        let effectiveSource: Language?
+        switch sourceLanguageOption {
+        case .auto:
+            effectiveSource = detectedLanguage
+        case .language(let l):
+            effectiveSource = l
+        }
+        if let src = effectiveSource, src.code == targetLanguage.code {
+            outputText = inputText
+            statusMessage = "Same language"
             return
         }
 

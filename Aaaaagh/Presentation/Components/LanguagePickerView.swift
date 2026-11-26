@@ -9,7 +9,8 @@ import Domain
 /// - For the *input* pane: includes an "Auto-Detect" option plus every language.
 /// - For the *output* pane: only concrete languages (never auto).
 struct LanguagePickerView: View {
-    let title: String
+    /// Optional title (nil = no title, just the picker).
+    let title: String?
     /// The currently selected language (nil for auto).
     @Binding var selectedLanguage: Language?
     /// True when the "Auto-Detect" option is active (input pane only).
@@ -21,10 +22,13 @@ struct LanguagePickerView: View {
     var isDetectionUncertain: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 2) {
+            // Title (only if provided).
+            if let title {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Picker("", selection: Binding(
                 get: { isAuto ? Self.autoTag : (selectedLanguage?.code ?? "") },
@@ -47,16 +51,16 @@ struct LanguagePickerView: View {
             }
             .labelsHidden()
 
-            // Auto-detect badge.
+            // Auto-detect badge (inline, compact).
             if allowsAutoDetect && isAuto {
                 if let detected = detectedLanguage {
                     Text(isDetectionUncertain
-                         ? "Detected: \(detected.englishName) (uncertain)"
-                         : "Detected: \(detected.englishName)")
+                         ? "(\(detected.englishName), uncertain)"
+                         : "(\(detected.englishName))")
                         .font(.caption2)
                         .foregroundStyle(isDetectionUncertain ? .orange : .secondary)
                 } else {
-                    Text("No language detected yet")
+                    Text("(no detection)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
