@@ -385,20 +385,39 @@ final class TranslatorViewModel: ObservableObject {
     func replaceSelectedWord(with alternative: String) {
         guard let word = selectedOutputWord, !word.isEmpty else { return }
         var text = outputText
+        
+        // Find all occurrences of the word (whole-word match).
+        var ranges: [Range<String.Index>] = []
         var searchRange = text.startIndex..<text.endIndex
         while let range = text.range(of: word, options: [.caseInsensitive, .diacriticInsensitive], range: searchRange) {
-            let beforeOK = range.lowerBound == text.startIndex
-                || !text[text.index(before: range.lowerBound)].isLetter
-                && !text[text.index(before: range.lowerBound)].isNumber
-            let afterOK = range.upperBound == text.endIndex
-                || !text[text.index(after: range.upperBound)].isLetter
-                && !text[text.index(after: range.upperBound)].isNumber
+            // Check if it's a whole word (not part of a larger word).
+            let beforeOK: Bool
+            if range.lowerBound == text.startIndex {
+                beforeOK = true
+            } else {
+                let beforeChar = text[text.index(before: range.lowerBound)]
+                beforeOK = !beforeChar.isLetter && !beforeChar.isNumber
+            }
+            
+            let afterOK: Bool
+            if range.upperBound == text.endIndex {
+                afterOK = true
+            } else {
+                let afterChar = text[text.index(range.upperBound, offsetBy: 1)]
+                afterOK = !afterChar.isLetter && !afterChar.isNumber
+            }
+            
             if beforeOK && afterOK {
-                text.replaceSubrange(range, with: alternative)
-                break
+                ranges.append(range)
             }
             searchRange = range.upperBound..<text.endIndex
         }
+        
+        // Replace the first whole-word occurrence.
+        if let range = ranges.first {
+            text.replaceSubrange(range, with: alternative)
+        }
+        
         outputText = text
         selectedOutputWord = nil
         wordAlternatives = []
