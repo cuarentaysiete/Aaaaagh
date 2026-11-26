@@ -41,8 +41,8 @@ final class LanguageDetectionService {
         tagger.string = trimmed
 
         // Get the language tag for the first paragraph.
-        guard let (tag, _) = tagger.tag(at: trimmed.startIndex, unit: .paragraph, scheme: .language),
-              let languageCode = tag.rawValue else {
+        let result = tagger.tag(at: trimmed.startIndex, unit: .paragraph, scheme: .language)
+        guard let tag = result.0, let languageCode = tag.rawValue else {
             return DetectionResult(language: nil, confidence: 0, isUncertain: true)
         }
 
