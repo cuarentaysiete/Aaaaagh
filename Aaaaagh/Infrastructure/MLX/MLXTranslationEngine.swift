@@ -24,8 +24,8 @@ import Domain
 final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable {
     // MARK: - State
 
-    private let profile: ModelProfile
-    private let modelDirectory: URL
+    private var profile: ModelProfile
+    private var modelDirectory: URL
 
     private var modelContainer: ModelContainer?
     private var loadingTask: Task<Void, Error>?
@@ -154,7 +154,7 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
                 }
                 continuation.finish()
             }
-            task.resume()
+            // Task { } auto-resumes; no .resume() needed.
             continuation.onTermination = { @Sendable _ in
                 task.cancel()
             }
