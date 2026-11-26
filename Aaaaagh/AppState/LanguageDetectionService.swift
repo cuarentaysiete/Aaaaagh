@@ -61,22 +61,22 @@ final class LanguageDetectionService {
 
         // Spanish markers: "ñ", "¿", "¡"
         if lower.contains("ñ") || lower.contains("¿") || lower.contains("¡") {
-            return Language(languageCode: "es", englishName: "Spanish")
+            return Language(code: "es", nativeName: "Español", englishName: "Spanish")
         }
 
         // French markers: "é", "è", "ê", "à", "ç" + "r" endings are common
         if lower.contains("é") || lower.contains("è") || lower.contains("ê") || lower.contains("à") || lower.contains("ç") {
             // Could be French, Spanish, Portuguese — but "ç" is very French-specific.
             if lower.contains("ç") {
-                return Language(languageCode: "fr", englishName: "French")
+                return Language(code: "fr", nativeName: "Français", englishName: "French")
             }
             // Otherwise, lean French (most common European language with these accents).
-            return Language(languageCode: "fr", englishName: "French")
+            return Language(code: "fr", nativeName: "Français", englishName: "French")
         }
 
         // German markers: "ü", "ö", "ä", "ß"
         if lower.contains("ü") || lower.contains("ö") || lower.contains("ä") || lower.contains("ß") {
-            return Language(languageCode: "de", englishName: "German")
+            return Language(code: "de", nativeName: "Deutsch", englishName: "German")
         }
 
         // Italian markers: "è", "ì", "ù", "ò", "à" (but these overlap with French/Spanish).
