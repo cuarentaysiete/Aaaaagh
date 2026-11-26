@@ -84,6 +84,18 @@ else
 	echo "    WARNING: no model resources at $MODELS_SRC (model won't be available)" >&2
 fi
 
+echo "==> Copying MLX Metal library bundle…"
+# Find the mlx-swift_Cmlx.bundle (contains default.metallib for GPU operations).
+# MLX needs this bundle at runtime to load the Metal shaders.
+CMLX_BUNDLE=$(find "$ROOT/.build" -name "mlx-swift_Cmlx.bundle" -type d 2>/dev/null | head -1)
+if [[ -n "$CMLX_BUNDLE" && -d "$CMLX_BUNDLE" ]]; then
+	rm -rf "$RESOURCES_DIR/mlx-swift_Cmlx.bundle"
+	cp -R "$CMLX_BUNDLE" "$RESOURCES_DIR/"
+	echo "    Copied MLX bundle from $CMLX_BUNDLE"
+else
+	echo "    WARNING: mlx-swift_Cmlx.bundle not found (MLX GPU operations may fail)" >&2
+fi
+
 echo "==> Ad-hoc code signing…"
 codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null || echo "    (codesign skipped)"
 
