@@ -136,42 +136,57 @@ final class MLXTranslationEngine: TranslationEngineProtocol, @unchecked Sendable
         _ request: TranslationRequest,
         sourceLanguage: Language?
     ) -> AsyncThrowingStream<String, Error> {
-        AsyncThrowingStream { continuation in
-            let task = Task {
-                guard let container = self.modelContainer else {
-                    throw TranslationError.modelNotLoaded
-                }
-
-                // Build the chat session with a terse, non-conversational system prompt.
-                let system = PromptBuilder.systemPrompt(
-                    from: request.sourceLanguage == .auto ? nil : sourceLanguage,
-                    to: request.targetLanguage,
-                    modelStyle: self.profile.promptStyle
-                )
-
-                let userPrompt = PromptBuilder.translationPrompt(
-                    text: request.text,
-                    target: request.targetLanguage,
-                    source: request.sourceLanguage == .auto ? nil : sourceLanguage,
-                    modelStyle: self.profile.promptStyle
-                )
-
-                let params = self.generateParameters(maxTokens: self.profile.maxOutputTokens)
-                let session = ChatSession(
-                    container,
-                    instructions: system,
-                    generateParameters: params
-                )
-
-                // Fresh session per request: translation is stateless, so we don't
-                // replay the previous turn's history (keeps the KV cache small).
-                for try await chunk in session.streamResponse(to: userPrompt) {
-                    try Task.checkCancellation()
-                    continuation.yield(chunk)
-                }
-                continuation.finish()
+        // Capture the loaded container and profile up front (avoids data races in the
+        // nonisolated Task, and fails fast if the model isn't loaded).
+        guard let container = modelContainer else {
+            return AsyncThrowingStream { continuation in
+                continuation.finish(throwing: TranslationError.modelNotLoaded)
             }
-            // Task { } auto-resumes; no .resume() needed.
+        }
+        let profile = self.profile
+        NSLog("[MLXTranslationEngine] translate(): model loaded, building prompts")
+
+        let system = PromptBuilder.systemPrompt(
+            from: request.sourceLanguage == .auto ? nil : sourceLanguage,
+            to: request.targetLanguage,
+            modelStyle: profile.promptStyle
+        )
+        let userPrompt = PromptBuilder.translationPrompt(
+            text: request.text,
+            target: request.targetLanguage,
+            source: request.sourceLanguage == .auto ? nil : sourceLanguage,
+            modelStyle: profile.promptStyle
+        )
+        let params = self.generateParameters(maxTokens: profile.maxOutputTokens)
+
+        NSLog("[MLXTranslationEngine] system prompt: \(system.prefix(120))")
+        NSLog("[MLXTranslationEngine] user prompt: \(userPrompt.prefix(120))")
+
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                var chunkCount = 0
+                do {
+                    let session = ChatSession(
+                        container,
+                        instructions: system,
+                        generateParameters: params
+                    )
+                    NSLog("[MLXTranslationEngine] ChatSession created, starting streamResponse")
+                    for try await chunk in session.streamResponse(to: userPrompt) {
+                        chunkCount += 1
+                        if chunkCount <= 3 {
+                            NSLog("[MLXTranslationEngine] chunk \(chunkCount): \(chunk.prefix(80))")
+                        }
+                        try Task.checkCancellation()
+                        continuation.yield(chunk)
+                    }
+                    NSLog("[MLXTranslationEngine] stream finished, total chunks: \(chunkCount)")
+                    continuation.finish()
+                } catch {
+                    NSLog("[MLXTranslationEngine] stream error: \(error), chunks so far: \(chunkCount)")
+                    continuation.finish(throwing: error)
+                }
+            }
             continuation.onTermination = { @Sendable _ in
                 task.cancel()
             }

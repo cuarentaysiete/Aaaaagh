@@ -160,17 +160,23 @@ final class TranslatorViewModel: ObservableObject {
 
         translationTask = Task { @MainActor [weak self, engine] in
             guard let self else { return }
+            var chunkCount = 0
             do {
                 // Load on demand (no-op if already loaded).
                 try await engine.load()
                 let stream = engine.translate(request, sourceLanguage: detectedSource)
                 for try await chunk in stream {
                     // Engine yields *delta* chunks; append incrementally.
+                    chunkCount += 1
                     self.outputText += chunk
                     self.invalidateIdleTimer()
                 }
                 self.isTranslating = false
-                self.statusMessage = "Done"
+                if chunkCount == 0 {
+                    self.statusMessage = "No output from model (0 chunks). Check model + prompt."
+                } else {
+                    self.statusMessage = "Done"
+                }
             } catch is CancellationError {
                 self.isTranslating = false
                 self.statusMessage = "Cancelled"
