@@ -18,15 +18,15 @@ struct DetectionResult: Equatable {
 
 /// Wraps `NLLanguageRecognizer` to detect the language of user input offline.
 ///
-/// Used synchronously from the `@MainActor` ViewModel, so this class is a
-/// plain, owned object (no explicit `Sendable` conformance — it has mutable
-/// config properties and is never shared across isolation domains).
+/// Uses the property-based API (`processLanguage(of:)` + `dominantLanguage` +
+/// `dominantLanguageConfidence`) which is stable across macOS versions. Avoids
+/// `NLLanguage.unknown` (which may not exist) by relying on our own `Language`
+/// type's `nil` return for unrecognized codes.
 final class LanguageDetectionService {
     /// Confidence below which we consider a detection "uncertain".
     var confidenceThreshold: Double = 0.5
 
-    /// Minimum number of characters for a "reliable" detection. Very short strings
-    /// (single words, proper nouns) are inherently ambiguous.
+    /// Minimum number of characters for a "reliable" detection.
     var minReliableLength: Int = 4
 
     /// Detect the language of `text`. Never throws; empty text yields a neutral result.
@@ -37,23 +37,20 @@ final class LanguageDetectionService {
         }
 
         let recognizer = NLLanguageRecognizer()
-        // `recognizeLanguage(of:)` returns a non-optional `NLLanguage`; it is
-        // `.unknown` when the recognizer cannot determine the language.
-        let dominant = recognizer.recognizeLanguage(of: trimmed)
-        let isKnown = (dominant != NLLanguage.unknown)
-        // Apple reports confidence in 0...1 (Float).
-        let confidence = Double(recognizer.recognizeConfidence(for: dominant))
+        recognizer.processLanguage(of: trimmed)
+        let dominant = recognizer.dominantLanguage
+        let confidence = Double(recognizer.dominantLanguageConfidence)
 
         // Map the `NLLanguage` to our domain `Language` via its BCP-47 raw value.
-        let language = isKnown
-            ? Language.language(fromDetectionCode: dominant.rawValue)
-            : nil
+        // Returns `nil` for unrecognized/unknown languages, which we treat as
+        // "uncertain" below.
+        let language = Language.language(fromDetectionCode: dominant.rawValue)
 
-        // Uncertainty: unknown, low confidence, or text shorter than our reliable floor.
-        let isUncertain = (!isKnown)
+        // Uncertainty: no recognizable language, low confidence, or text shorter
+        // than our reliable floor.
+        let isUncertain = (language == nil)
             || (confidence < confidenceThreshold)
-            || (trimmed.count < minReliableLength)
-            || (language == nil)
+            || (Double(trimmed.count) < Double(minReliableLength))
 
         return DetectionResult(language: language, confidence: confidence, isUncertain: isUncertain)
     }
