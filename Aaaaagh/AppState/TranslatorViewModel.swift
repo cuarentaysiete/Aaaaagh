@@ -104,6 +104,16 @@ final class TranslatorViewModel: ObservableObject {
     var isModelValid: Bool { modelStore.isActiveModelValid }
     var isModelLoaded: Bool { engine.isLoaded }
     var panesDisabled: Bool { !isModelValid }
+    
+    /// True if the target language is not in the model's strong language set
+    /// (EuroLLM is optimized for European languages, not CJK).
+    var targetLanguageWarning: String? {
+        let supportedCodes = Set(Language.europeanLanguages.map { $0.code })
+        if !supportedCodes.contains(targetLanguage.code) {
+            return "⚠️ Model may not support \(targetLanguage.englishName) well"
+        }
+        return nil
+    }
 
     /// The effective source language (resolving `.auto` with detection).
     var effectiveSourceLanguage: SourceLanguageOption {

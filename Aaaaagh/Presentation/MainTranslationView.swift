@@ -221,6 +221,13 @@ struct MainTranslationView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            
+            // Target language warning (if any).
+            if let warning = viewModel.targetLanguageWarning {
+                Text(warning)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
 
             Spacer()
 

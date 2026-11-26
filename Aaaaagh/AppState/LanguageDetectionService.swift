@@ -1,61 +1,125 @@
 // LanguageDetectionService.swift
-// AppState: offline language detection using NLTagger (NaturalLanguage framework).
+// AppState: offline language detection.
 //
-// Uses `NLTagger` with the `.language` scheme, which is a stable, well-documented
-// API that works across macOS versions without the variability of
-// `NLLanguageRecognizer`. No network.
+// Strategy:
+// 1. Character-based detection for CJK (Chinese, Japanese, Korean) — very reliable.
+// 2. NLTagger for other languages.
+//
+// No network.
 
 import Foundation
 import NaturalLanguage
 import Domain
 
-/// Result of a detection, including confidence and whether the text was usable.
+/// Result of a detection.
 struct DetectionResult: Equatable {
-    /// Detected `Language`, if confident enough to map.
     let language: Language?
-    /// Heuristic confidence score in 0...1 (0 when text is empty/no marker).
     let confidence: Double
-    /// True when the input was too short / ambiguous to trust the detection.
     let isUncertain: Bool
 }
 
-/// Detects the language of user input offline using `NLTagger` with the
-/// `.language` scheme. No network.
 final class LanguageDetectionService {
-    /// Minimum number of characters for a "reliable" detection.
     var minReliableLength: Int = 4
 
-    /// Detect the language of `text`. Never throws; empty text yields a neutral result.
     func detect(_ text: String) -> DetectionResult {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             return DetectionResult(language: nil, confidence: 0, isUncertain: true)
         }
-
         if trimmed.count < minReliableLength {
             return DetectionResult(language: nil, confidence: 0, isUncertain: true)
         }
 
-        // Use NLTagger with the .language scheme to detect the language.
-        let tagger = NLTagger(tagSchemes: [.language])
-        tagger.string = trimmed
+        // 1. CJK detection (character-based, very reliable).
+        if let cjkResult = detectCJK(trimmed) {
+            return cjkResult
+        }
 
-        // Get the language tag for the first paragraph.
-        let result = tagger.tag(at: trimmed.startIndex, unit: .paragraph, scheme: .language)
+        // 2. NLTagger for other languages.
+        return detectWithNLTagger(trimmed)
+    }
+
+    /// Detect CJK languages by counting CJK characters.
+    private func detectCJK(_ text: String) -> DetectionResult? {
+        var cjkCount = 0
+        var totalCount = 0
+
+        for char in text.unicodeScalars {
+            totalCount += 1
+            // CJK Unified Ideographs (Chinese).
+            if (0x4E00...0x9FFF).contains(char.value) ||
+               (0x3400...0x4DBF).contains(char.value) ||
+               (0x20000...0x2A6DF).contains(char.value) {
+                cjkCount += 1
+            }
+            // Japanese Hiragana + Katakana.
+            else if (0x3040...0x309F).contains(char.value) ||
+                    (0x30A0...0x30FF).contains(char.value) {
+                cjkCount += 1
+            }
+            // Korean Hangul.
+            else if (0xAC00...0xD7AF).contains(char.value) ||
+                    (0x1100...0x11FF).contains(char.value) {
+                cjkCount += 1
+            }
+        }
+
+        guard totalCount > 0 else { return nil }
+        let cjkRatio = Double(cjkCount) / Double(totalCount)
+
+        // If >50% of characters are CJK, it's likely CJK.
+        guard cjkRatio > 0.5 else { return nil }
+
+        // Distinguish between Chinese, Japanese, Korean:
+        // - Japanese: has Hiragana or Katakana.
+        // - Korean: has Hangul.
+        // - Chinese: only CJK Unified Ideographs.
+        var hasHiraganaKatakana = false
+        var hasHangul = false
+
+        for char in text.unicodeScalars {
+            if (0x3040...0x309F).contains(char.value) ||
+               (0x30A0...0x30FF).contains(char.value) {
+                hasHiraganaKatakana = true
+            }
+            if (0xAC00...0xD7AF).contains(char.value) ||
+               (0x1100...0x11FF).contains(char.value) {
+                hasHangul = true
+            }
+        }
+
+        let language: Language
+        if hasHiraganaKatakana {
+            language = Language(languageCode: "ja", englishName: "Japanese")
+        } else if hasHangul {
+            language = Language(languageCode: "ko", englishName: "Korean")
+        } else {
+            language = Language(languageCode: "zh", englishName: "Chinese")
+        }
+
+        return DetectionResult(
+            language: language,
+            confidence: min(0.95, cjkRatio + 0.5),
+            isUncertain: false
+        )
+    }
+
+    /// Detect language using NLTagger.
+    private func detectWithNLTagger(_ text: String) -> DetectionResult {
+        let tagger = NLTagger(tagSchemes: [.language])
+        tagger.string = text
+
+        let result = tagger.tag(at: text.startIndex, unit: .paragraph, scheme: .language)
         guard let tag = result.0 else {
             return DetectionResult(language: nil, confidence: 0, isUncertain: true)
         }
         let languageCode = tag.rawValue
 
-        // Map the ISO 639-1 code to a Domain.Language.
         guard let language = Language.language(withCode: languageCode) else {
             return DetectionResult(language: nil, confidence: 0, isUncertain: true)
         }
 
-        // NLTagger doesn't expose a confidence score directly; use a heuristic.
-        // Shorter texts are less reliable, so scale confidence by length.
-        let confidence = min(0.9, Double(trimmed.count) / 50.0)
-
+        let confidence = min(0.9, Double(text.count) / 50.0)
         let isUncertain = confidence < 0.5
 
         return DetectionResult(language: language, confidence: confidence, isUncertain: isUncertain)
