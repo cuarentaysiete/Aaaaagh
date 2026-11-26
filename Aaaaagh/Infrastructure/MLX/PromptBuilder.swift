@@ -39,6 +39,9 @@ struct PromptBuilder: Sendable {
         switch modelStyle {
         case .terseEngine:
             s += " Reply with the translation and nothing else."
+        case .conversational:
+            // Reserved for future conversational models; no extra nudge needed.
+            break
         }
         return s
     }
